@@ -1,0 +1,23 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 60px);
+  grid-template-rows: repeat(8, 60px);
+  border: 2px solid #333;
+}
+.square {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 36px;
+  user-select: none;
+}
+.white { background: #f0d9b5; }
+.black { background: #b58863; color: white; }
+.square.move { outline: 3px solid #0f0; }
+.square.capture { outline: 3px solid red; }
+.board.rotated { transform: rotate(180deg); }
+.board.rotated .square { transform: rotate(180deg); }
+#log { height: 250px; overflow-y: auto; }
+
