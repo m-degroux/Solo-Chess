@@ -13,11 +13,21 @@
   font-size: 36px;
   user-select: none;
 }
-.white { background: #f0d9b5; }
-.black { background: #b58863; color: white; }
+
 .square.move { outline: 3px solid #0f0; }
 .square.capture { outline: 3px solid red; }
 .board.rotated { transform: rotate(180deg); }
 .board.rotated .square { transform: rotate(180deg); }
 #log { height: 250px; overflow-y: auto; }
 
+.square.selected {
+  outline: 2px solid rgb(96, 241, 127);
+}
+.square.highlight {
+  background-color: rgba(8, 247, 215, 0.4);
+}
+
+.square.white { background-color: #eee; }
+.square.black { background-color: #777; color: white; }
+.square.selected { outline: 3px solid yellow; }
+.square.highlight { background-color: rgba(0, 255, 0, 0.4); }

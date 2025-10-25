@@ -1,23 +1,21 @@
-// === Variables globales ===
+
 const boardEl = document.getElementById('board');
 const logEl = document.getElementById('log');
 const turnLabel = document.getElementById('turnLabel');
 const resetBtn = document.getElementById('resetBtn');
 
-// === État du jeu ===
 const state = {
   board: [],
   selected: null,
   whiteTurn: true,
   history: [],
-  enPassant: null, // position possible de prise en passant
+  enPassant: null,
   castlingRights: {
     w: { K: true, Q: true },
     b: { K: true, Q: true }
   }
 };
 
-// === Fonctions utilitaires ===
 function cloneBoard(b) {
   return b.map(r => r.map(c => (c ? { ...c } : null)));
 }
@@ -25,7 +23,6 @@ function inside(r, c) {
   return r >= 0 && r < 8 && c >= 0 && c < 8;
 }
 
-// === Initialisation ===
 function initBoard() {
   const p = (type, color) => ({ type, color, hasMoved: false });
   const b = Array.from({ length: 8 }, () => Array(8).fill(null));
@@ -215,17 +212,19 @@ function onSquareClick(r, c) {
         if (from.c === 0) state.castlingRights[piece.color].Q = false;
         if (from.c === 7) state.castlingRights[piece.color].K = false;
       }
+      if (isCheckmate(state.whiteTurn ? 'w' : 'b')) {
+        log(`${state.whiteTurn ? 'Blanc' : 'Noir'} est en échec et mat !`);
+      }
 
       if (isKingInCheck(piece.color)) {
         state.board = snapshot;
-        log('🚫 Mouvement illégal (roi en échec)');
+        log('Mouvement illégal (roi en échec)');
       } else {
         state.history.push(snapshot);
         state.whiteTurn = !state.whiteTurn;
         log(`${piece.color === 'w' ? '♙ Blanc' : '♟ Noir'} joue ${piece.type} ${String.fromCharCode(65 + from.c)}${8 - from.r} → ${String.fromCharCode(65 + c)}${8 - r}${captured ? ' (x)' : ''}`);
       }
     }
-
     state.selected = null;
     render();
   } else if (cell && ((state.whiteTurn && cell.color === 'w') || (!state.whiteTurn && cell.color === 'b'))) {
@@ -236,18 +235,26 @@ function onSquareClick(r, c) {
 
 function render() {
   boardEl.innerHTML = '';
-  for (let r = 0; r < 8; r++) {
+  for (let r = 7; r >= 0; r--) {
     for (let c = 0; c < 8; c++) {
       const cell = state.board[r][c];
       const sq = document.createElement('div');
       sq.className = `square ${(r + c) % 2 === 0 ? 'white' : 'black'}`;
       if (state.selected && state.selected.r === r && state.selected.c === c) sq.classList.add('selected');
+      if (state.selected) {
+        const moves = validMoves(state.selected.r, state.selected.c);
+        if (moves.some(m => m.r === r && m.c === c)) sq.classList.add('highlight');
+      }
+
       if (cell) sq.textContent = pieceSymbol(cell);
       sq.addEventListener('click', () => onSquareClick(r, c));
       boardEl.appendChild(sq);
     }
-  }
+  }   
   turnLabel.textContent = state.whiteTurn ? 'Blanc' : 'Noir';
+  if (isKingInCheck(state.whiteTurn ? 'w' : 'b')) {
+    turnLabel.textContent += ' Échec !';
+  }
 }
 
 function pieceSymbol(p) {
@@ -272,9 +279,21 @@ resetBtn.addEventListener('click', () => {
   state.enPassant = null;
   state.castlingRights = { w: { K: true, Q: true }, b: { K: true, Q: true } };
   render();
-  log('🔄 Nouvelle partie');
+  log('Nouvelle partie');
 });
 
+function isCheckmate(color) {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = state.board[r][c];
+      if (piece && piece.color === color) {
+        if (validMoves(r, c).length > 0) return false;
+      }
+    }
+  }
+  return isKingInCheck(color);
+}
+state.whiteTurn = true;
 state.board = initBoard();
 render();
 log('Jeu initialisé');
