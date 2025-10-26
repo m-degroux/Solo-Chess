@@ -272,13 +272,12 @@ function onSquareClick(r, c) {
     if (move) {
       const snapshot = cloneBoard(state.board);
       const captured = state.board[r][c];
-      const prevEnPassant = state.enPassant;
       state.enPassant = null;
       if (move.enPassant) {
         const capRow = piece.color === 'w' ? r + 1 : r - 1;
         state.board[capRow][c] = null;
       }
-       state.selected = null;
+      state.selected = null;
 
       if (move.castling) {
         const row = piece.color === 'w' ? 7 : 0;
@@ -311,14 +310,14 @@ function onSquareClick(r, c) {
         if (from.c === 7) state.castlingRights[piece.color].K = false;
       }
       state.history.push(snapshot);
-      state.whiteTurn = !state.whiteTurn;
       log(`${piece.color === 'w' ? '♙ Blanc' : '♟ Noir'} joue ${piece.type} ${String.fromCharCode(65 + from.c)}${8 - from.r} → ${String.fromCharCode(65 + c)}${8 - r}${captured ? ' (x)' : ''}`);
-      const sideToMove = state.whiteTurn ? 'w' : 'b';
+      const sideToMove = state.whiteTurn ? 'b' : 'w';
       if (isCheckmate(sideToMove)) {
         log(`${sideToMove === 'w' ? 'Blanc' : 'Noir'} est en échec et mat !`);
       } else if (isKingInCheck(sideToMove)) {
         log(`${sideToMove === 'w' ? 'Blanc' : 'Noir'} est en échec !`);
       }
+      state.whiteTurn = !state.whiteTurn;
     } else {
       if (cell && ((state.whiteTurn && cell.color === 'w') || (!state.whiteTurn && cell.color === 'b'))) {
         state.selected = { r, c };
@@ -326,7 +325,6 @@ function onSquareClick(r, c) {
         state.selected = null;
       }
     }
-
     render();
   } else if (cell && ((state.whiteTurn && cell.color === 'w') || (!state.whiteTurn && cell.color === 'b'))) {
     state.selected = { r, c };
@@ -340,7 +338,7 @@ function render() {
   const cols = [...Array(8).keys()];
   const rOrder = state.flipped ? rows : [...rows].reverse();
   const cOrder = state.flipped ? [...cols].reverse() : cols;
-   for (const r of rOrder) {
+  for (const r of rOrder) {
     for (const c of cOrder) {
       const cell = state.board[r][c];
       const sq = document.createElement('div');
