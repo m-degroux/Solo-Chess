@@ -9,6 +9,7 @@ const state = {
   whiteTurn: true,
   history: [],
   enPassant: null,
+  flipped: false,
   castlingRights: {
     w: { K: true, Q: true },
     b: { K: true, Q: true }
@@ -124,7 +125,7 @@ function validMoves(r, c) {
               moves.push({ r: rr, c: cc });
             }
           }
-     if (!piece.hasMoved) {
+      if (!piece.hasMoved) {
         const backRank = piece.color === 'w' ? 7 : 0;
         if (state.castlingRights[piece.color].K &&
           !state.board[backRank][5] && !state.board[backRank][6]) {
@@ -152,7 +153,7 @@ function isSquareAttacked(r, c, color) {
       if (p && p.type === 'P' && p.color === enemy) return true;
     }
   }
-  for (const [dr, dc] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]) {
+  for (const [dr, dc] of [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2]]) {
     const rr = r + dr, cc = c + dc;
     if (inside(rr, cc)) {
       const p = state.board[rr][cc];
@@ -160,8 +161,8 @@ function isSquareAttacked(r, c, color) {
     }
   }
   const sliding = [
-    { dirs: [[1,0],[-1,0],[0,1],[0,-1]], types: ['R', 'Q'] },
-    { dirs: [[1,1],[1,-1],[-1,1],[-1,-1]], types: ['B', 'Q'] }
+    { dirs: [[1, 0], [-1, 0], [0, 1], [0, -1]], types: ['R', 'Q'] },
+    { dirs: [[1, 1], [1, -1], [-1, 1], [-1, -1]], types: ['B', 'Q'] }
   ];
   for (const group of sliding) {
     for (const [dr, dc] of group.dirs) {
@@ -242,7 +243,7 @@ function legalMoves(r, c) {
     state.board = realBoard;
     if (kingSafe && m.castling) {
       const backRank = piece.color === 'w' ? 7 : 0;
-      const passSquares = m.castling === 'K' ? [{r: backRank, c:5}, {r: backRank, c:6}] : [{r: backRank, c:3}, {r: backRank, c:2}];
+      const passSquares = m.castling === 'K' ? [{ r: backRank, c: 5 }, { r: backRank, c: 6 }] : [{ r: backRank, c: 3 }, { r: backRank, c: 2 }];
       let passOk = true;
       for (const sq of passSquares) {
         const realBoard2 = state.board;
@@ -277,6 +278,8 @@ function onSquareClick(r, c) {
         const capRow = piece.color === 'w' ? r + 1 : r - 1;
         state.board[capRow][c] = null;
       }
+       state.selected = null;
+
       if (move.castling) {
         const row = piece.color === 'w' ? 7 : 0;
         if (move.castling === 'K') {
@@ -333,8 +336,12 @@ function onSquareClick(r, c) {
 
 function render() {
   boardEl.innerHTML = '';
-  for (let r = 7; r >= 0; r--) {
-    for (let c = 0; c < 8; c++) {
+  const rows = [...Array(8).keys()];
+  const cols = [...Array(8).keys()];
+  const rOrder = state.flipped ? rows : [...rows].reverse();
+  const cOrder = state.flipped ? [...cols].reverse() : cols;
+   for (const r of rOrder) {
+    for (const c of cOrder) {
       const cell = state.board[r][c];
       const sq = document.createElement('div');
       sq.className = `square ${(r + c) % 2 === 0 ? 'white' : 'black'}`;
@@ -345,7 +352,13 @@ function render() {
         if (moves.some(m => m.r === r && m.c === c)) sq.classList.add('highlight');
       }
 
-      if (cell) sq.textContent = pieceSymbol(cell);
+      if (cell) {
+        const span = document.createElement('span');
+        span.textContent = pieceSymbol(cell);
+        span.style.color = cell.color === 'w' ? 'white' : 'black';
+        span.style.fontSize = '40px';
+        sq.appendChild(span);
+      }
       sq.addEventListener('click', () => onSquareClick(r, c));
       boardEl.appendChild(sq);
     }
@@ -357,11 +370,10 @@ function render() {
 }
 
 function pieceSymbol(p) {
-  const sym = {
-    'Pw': '♙', 'Rw': '♖', 'Nw': '♘', 'Bw': '♗', 'Qw': '♕', 'Kw': '♔',
-    'Pb': '♟', 'Rb': '♜', 'Nb': '♞', 'Bb': '♝', 'Qb': '♛', 'Kb': '♚'
+  const symbols = {
+    'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
   };
-  return sym[p.type + p.color];
+  return symbols[p.type];
 }
 
 function log(msg) {
@@ -381,7 +393,14 @@ resetBtn.addEventListener('click', () => {
   log('Nouvelle partie');
 });
 
+const flipBtn = document.getElementById('flipBtn');
+flipBtn.addEventListener('click', () => {
+  state.flipped = !state.flipped;
+  render();
+});
+
 function isCheckmate(color) {
+  if (!isKingInCheck(color)) return false;
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
       const piece = state.board[r][c];
@@ -390,7 +409,7 @@ function isCheckmate(color) {
       }
     }
   }
-  return isKingInCheck(color);
+  return true;
 }
 
 state.board = initBoard();

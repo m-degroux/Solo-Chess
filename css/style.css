@@ -15,8 +15,9 @@
 #log { height: 350px; overflow-y: auto; }
 
 
-.square.white { background-color: #eee; }
-.square.black { background-color: #777; color: white; }
+.square.white { background-color: #d7c183; }
+.square.black { background-color: #a56e10; color: white; }
 .square.selected { border: 3px solid rgb(208, 100, 241); }
 .square.highlight { background-color: rgba(0, 255, 0, 0.4); }
+
 
