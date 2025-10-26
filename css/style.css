@@ -2,32 +2,21 @@
   display: grid;
   grid-template-columns: repeat(8, 60px);
   grid-template-rows: repeat(8, 60px);
-  border: 2px solid #333;
 }
 .square {
   width: 60px;
   height: 60px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  font-size: 36px;
-  user-select: none;
+  justify-content: center;
+  font-size: 38px;
 }
 
-.square.move { outline: 3px solid #0f0; }
-.square.capture { outline: 3px solid red; }
-.board.rotated { transform: rotate(180deg); }
-.board.rotated .square { transform: rotate(180deg); }
-#log { height: 250px; overflow-y: auto; }
+#log { height: 350px; overflow-y: auto; }
 
-.square.selected {
-  outline: 2px solid rgb(96, 241, 127);
-}
-.square.highlight {
-  background-color: rgba(8, 247, 215, 0.4);
-}
 
 .square.white { background-color: #eee; }
 .square.black { background-color: #777; color: white; }
-.square.selected { outline: 3px solid yellow; }
+.square.selected { border: 3px solid rgb(208, 100, 241); }
 .square.highlight { background-color: rgba(0, 255, 0, 0.4); }
+

@@ -1,4 +1,3 @@
-
 const boardEl = document.getElementById('board');
 const logEl = document.getElementById('log');
 const turnLabel = document.getElementById('turnLabel');
@@ -57,13 +56,10 @@ function validMoves(r, c) {
     case 'P': {
       const dir = piece.color === 'w' ? -1 : 1;
       const startRow = piece.color === 'w' ? 6 : 1;
-
-      if (!state.board[r + dir][c]) addIf(r + dir, c);
-
-      if (r === startRow && !state.board[r + dir][c] && !state.board[r + 2 * dir][c]) {
-        moves.push({ r: r + 2 * dir, c });
+      if (inside(r + dir, c) && !state.board[r + dir][c]) addIf(r + dir, c);
+      if (r === startRow && !state.board[r + dir][c] && inside(r + 2 * dir, c) && !state.board[r + 2 * dir][c]) {
+        moves.push({ r: r + 2 * dir, c, doubleStep: true });
       }
-
       for (const dc of [-1, 1]) {
         const rr = r + dir, cc = c + dc;
         if (inside(rr, cc)) {
@@ -71,7 +67,6 @@ function validMoves(r, c) {
           if (target && target.color !== piece.color) moves.push({ r: rr, c: cc });
         }
       }
-      
       if (state.enPassant && Math.abs(state.enPassant.c - c) === 1 && r + dir === state.enPassant.r) {
         moves.push({ r: state.enPassant.r, c: state.enPassant.c, enPassant: true });
       }
@@ -80,7 +75,7 @@ function validMoves(r, c) {
     }
 
     case 'R':
-      for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         let rr = r + dr, cc = c + dc;
         while (inside(rr, cc)) {
           const cont = addIf(rr, cc);
@@ -91,7 +86,7 @@ function validMoves(r, c) {
       break;
 
     case 'B':
-      for (const [dr, dc] of [[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         let rr = r + dr, cc = c + dc;
         while (inside(rr, cc)) {
           const cont = addIf(rr, cc);
@@ -102,7 +97,7 @@ function validMoves(r, c) {
       break;
 
     case 'Q':
-      for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         let rr = r + dr, cc = c + dc;
         while (inside(rr, cc)) {
           const cont = addIf(rr, cc);
@@ -113,7 +108,7 @@ function validMoves(r, c) {
       break;
 
     case 'N':
-      for (const [dr, dc] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]) {
+      for (const [dr, dc] of [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2]]) {
         const rr = r + dr, cc = c + dc;
         if (inside(rr, cc) && (!state.board[rr][cc] || state.board[rr][cc].color !== piece.color))
           moves.push({ r: rr, c: cc });
@@ -123,21 +118,20 @@ function validMoves(r, c) {
     case 'K':
       for (let dr = -1; dr <= 1; dr++)
         for (let dc = -1; dc <= 1; dc++)
-          if (dr || dc) addIf(r + dr, c + dc);
-
-      if (!piece.hasMoved && !isKingInCheck(piece.color)) {
+          if (dr || dc) {
+            const rr = r + dr, cc = c + dc;
+            if (inside(rr, cc) && (!state.board[rr][cc] || state.board[rr][cc].color !== piece.color)) {
+              moves.push({ r: rr, c: cc });
+            }
+          }
+     if (!piece.hasMoved) {
         const backRank = piece.color === 'w' ? 7 : 0;
-
         if (state.castlingRights[piece.color].K &&
-          !state.board[backRank][5] && !state.board[backRank][6] &&
-          !isSquareAttacked(backRank, 5, piece.color) &&
-          !isSquareAttacked(backRank, 6, piece.color)) {
+          !state.board[backRank][5] && !state.board[backRank][6]) {
           moves.push({ r: backRank, c: 6, castling: 'K' });
         }
         if (state.castlingRights[piece.color].Q &&
-          !state.board[backRank][1] && !state.board[backRank][2] && !state.board[backRank][3] &&
-          !isSquareAttacked(backRank, 2, piece.color) &&
-          !isSquareAttacked(backRank, 3, piece.color)) {
+          !state.board[backRank][1] && !state.board[backRank][2] && !state.board[backRank][3]) {
           moves.push({ r: backRank, c: 2, castling: 'Q' });
         }
       }
@@ -149,14 +143,49 @@ function validMoves(r, c) {
 
 
 function isSquareAttacked(r, c, color) {
-  for (let i = 0; i < 8; i++)
-    for (let j = 0; j < 8; j++) {
-      const p = state.board[i][j];
-      if (p && p.color !== color) {
-        const mvs = validMoves(i, j);
-        if (mvs.some(m => m.r === r && m.c === c)) return true;
+  const enemy = color === 'w' ? 'b' : 'w';
+  const pawnDir = enemy === 'w' ? -1 : 1;
+  for (const dc of [-1, 1]) {
+    const rr = r + pawnDir, cc = c + dc;
+    if (inside(rr, cc)) {
+      const p = state.board[rr][cc];
+      if (p && p.type === 'P' && p.color === enemy) return true;
+    }
+  }
+  for (const [dr, dc] of [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]) {
+    const rr = r + dr, cc = c + dc;
+    if (inside(rr, cc)) {
+      const p = state.board[rr][cc];
+      if (p && p.color === enemy && p.type === 'N') return true;
+    }
+  }
+  const sliding = [
+    { dirs: [[1,0],[-1,0],[0,1],[0,-1]], types: ['R', 'Q'] },
+    { dirs: [[1,1],[1,-1],[-1,1],[-1,-1]], types: ['B', 'Q'] }
+  ];
+  for (const group of sliding) {
+    for (const [dr, dc] of group.dirs) {
+      let rr = r + dr, cc = c + dc;
+      while (inside(rr, cc)) {
+        const p = state.board[rr][cc];
+        if (p) {
+          if (p.color === enemy && group.types.includes(p.type)) return true;
+          break;
+        }
+        rr += dr; cc += dc;
       }
     }
+  }
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const rr = r + dr, cc = c + dc;
+      if (inside(rr, cc)) {
+        const p = state.board[rr][cc];
+        if (p && p.color === enemy && p.type === 'K') return true;
+      }
+    }
+
   return false;
 }
 
@@ -168,64 +197,133 @@ function isKingInCheck(color) {
   return false;
 }
 
+function legalMoves(r, c) {
+  const piece = state.board[r][c];
+  if (!piece) return [];
+  const moves = validMoves(r, c);
+  const legal = [];
+
+  for (const m of moves) {
+    const snapshot = cloneBoard(state.board);
+    const from = { r, c };
+    const to = { r: m.r, c: m.c };
+    const movedPiece = snapshot[from.r][from.c];
+
+    if (m.enPassant) {
+      const capRow = movedPiece.color === 'w' ? to.r + 1 : to.r - 1;
+      snapshot[capRow][to.c] = null;
+    }
+    if (m.castling) {
+      const backRank = movedPiece.color === 'w' ? 7 : 0;
+      if (m.castling === 'K') {
+        snapshot[backRank][6] = snapshot[backRank][4];
+        snapshot[backRank][4] = null;
+        snapshot[backRank][5] = snapshot[backRank][7];
+        snapshot[backRank][7] = null;
+      } else {
+        snapshot[backRank][2] = snapshot[backRank][4];
+        snapshot[backRank][4] = null;
+        snapshot[backRank][3] = snapshot[backRank][0];
+        snapshot[backRank][0] = null;
+      }
+    } else {
+      snapshot[to.r][to.c] = movedPiece;
+      snapshot[from.r][from.c] = null;
+    }
+    let kingPos = null;
+    for (let rr = 0; rr < 8; rr++)
+      for (let cc = 0; cc < 8; cc++)
+        if (snapshot[rr][cc] && snapshot[rr][cc].type === 'K' && snapshot[rr][cc].color === movedPiece.color)
+          kingPos = { r: rr, c: cc };
+    if (!kingPos) continue;
+    const realBoard = state.board;
+    state.board = snapshot;
+    const kingSafe = !isSquareAttacked(kingPos.r, kingPos.c, movedPiece.color);
+    state.board = realBoard;
+    if (kingSafe && m.castling) {
+      const backRank = piece.color === 'w' ? 7 : 0;
+      const passSquares = m.castling === 'K' ? [{r: backRank, c:5}, {r: backRank, c:6}] : [{r: backRank, c:3}, {r: backRank, c:2}];
+      let passOk = true;
+      for (const sq of passSquares) {
+        const realBoard2 = state.board;
+        state.board = snapshot;
+        if (isSquareAttacked(sq.r, sq.c, piece.color)) passOk = false;
+        state.board = realBoard2;
+      }
+      if (!passOk) continue;
+    }
+
+    if (kingSafe) legal.push(m);
+  }
+
+  return legal;
+}
+
 function onSquareClick(r, c) {
   const cell = state.board[r][c];
 
   if (state.selected) {
     const from = state.selected;
     const piece = state.board[from.r][from.c];
-    const moves = validMoves(from.r, from.c);
+    if (!piece) { state.selected = null; render(); return; }
+    const moves = legalMoves(from.r, from.c);
     const move = moves.find(m => m.r === r && m.c === c);
-
     if (move) {
       const snapshot = cloneBoard(state.board);
       const captured = state.board[r][c];
+      const prevEnPassant = state.enPassant;
       state.enPassant = null;
-
       if (move.enPassant) {
-        const dir = piece.color === 'w' ? 1 : -1;
-        state.board[r + dir][c] = null;
+        const capRow = piece.color === 'w' ? r + 1 : r - 1;
+        state.board[capRow][c] = null;
       }
-
       if (move.castling) {
         const row = piece.color === 'w' ? 7 : 0;
         if (move.castling === 'K') {
+          state.board[row][6] = state.board[row][4];
+          state.board[row][4] = null;
           state.board[row][5] = state.board[row][7];
           state.board[row][7] = null;
+          state.board[row][6].hasMoved = true;
           state.board[row][5].hasMoved = true;
         } else {
+          state.board[row][2] = state.board[row][4];
+          state.board[row][4] = null;
           state.board[row][3] = state.board[row][0];
           state.board[row][0] = null;
+          state.board[row][2].hasMoved = true;
           state.board[row][3].hasMoved = true;
         }
+      } else {
+        state.board[r][c] = piece;
+        state.board[from.r][from.c] = null;
+        piece.hasMoved = true;
       }
-
-      state.board[r][c] = piece;
-      state.board[from.r][from.c] = null;
-      piece.hasMoved = true;
-
-      if (piece.type === 'P' && Math.abs(r - from.r) === 2)
+      if (piece.type === 'P' && Math.abs(r - from.r) === 2) {
         state.enPassant = { r: (r + from.r) / 2, c };
-
+      }
       if (piece.type === 'K') state.castlingRights[piece.color] = { K: false, Q: false };
       if (piece.type === 'R') {
         if (from.c === 0) state.castlingRights[piece.color].Q = false;
         if (from.c === 7) state.castlingRights[piece.color].K = false;
       }
-      if (isCheckmate(state.whiteTurn ? 'w' : 'b')) {
-        log(`${state.whiteTurn ? 'Blanc' : 'Noir'} est en échec et mat !`);
+      state.history.push(snapshot);
+      state.whiteTurn = !state.whiteTurn;
+      log(`${piece.color === 'w' ? '♙ Blanc' : '♟ Noir'} joue ${piece.type} ${String.fromCharCode(65 + from.c)}${8 - from.r} → ${String.fromCharCode(65 + c)}${8 - r}${captured ? ' (x)' : ''}`);
+      const sideToMove = state.whiteTurn ? 'w' : 'b';
+      if (isCheckmate(sideToMove)) {
+        log(`${sideToMove === 'w' ? 'Blanc' : 'Noir'} est en échec et mat !`);
+      } else if (isKingInCheck(sideToMove)) {
+        log(`${sideToMove === 'w' ? 'Blanc' : 'Noir'} est en échec !`);
       }
-
-      if (isKingInCheck(piece.color)) {
-        state.board = snapshot;
-        log('Mouvement illégal (roi en échec)');
+    } else {
+      if (cell && ((state.whiteTurn && cell.color === 'w') || (!state.whiteTurn && cell.color === 'b'))) {
+        state.selected = { r, c };
       } else {
-        state.history.push(snapshot);
-        state.whiteTurn = !state.whiteTurn;
-        log(`${piece.color === 'w' ? '♙ Blanc' : '♟ Noir'} joue ${piece.type} ${String.fromCharCode(65 + from.c)}${8 - from.r} → ${String.fromCharCode(65 + c)}${8 - r}${captured ? ' (x)' : ''}`);
+        state.selected = null;
       }
     }
-    state.selected = null;
+
     render();
   } else if (cell && ((state.whiteTurn && cell.color === 'w') || (!state.whiteTurn && cell.color === 'b'))) {
     state.selected = { r, c };
@@ -241,8 +339,9 @@ function render() {
       const sq = document.createElement('div');
       sq.className = `square ${(r + c) % 2 === 0 ? 'white' : 'black'}`;
       if (state.selected && state.selected.r === r && state.selected.c === c) sq.classList.add('selected');
+
       if (state.selected) {
-        const moves = validMoves(state.selected.r, state.selected.c);
+        const moves = legalMoves(state.selected.r, state.selected.c);
         if (moves.some(m => m.r === r && m.c === c)) sq.classList.add('highlight');
       }
 
@@ -250,10 +349,10 @@ function render() {
       sq.addEventListener('click', () => onSquareClick(r, c));
       boardEl.appendChild(sq);
     }
-  }   
-  turnLabel.textContent = state.whiteTurn ? 'Blanc' : 'Noir';
+  }
+  turnLabel.textContent = state.whiteTurn ? 'Tour : Blanc' : 'Tour : Noir';
   if (isKingInCheck(state.whiteTurn ? 'w' : 'b')) {
-    turnLabel.textContent += ' Échec !';
+    turnLabel.textContent += ' (Échec !)';
   }
 }
 
@@ -274,9 +373,9 @@ function log(msg) {
 resetBtn.addEventListener('click', () => {
   state.board = initBoard();
   state.selected = null;
-  state.whiteTurn = true;
   state.history = [];
   state.enPassant = null;
+  state.whiteTurn = true;
   state.castlingRights = { w: { K: true, Q: true }, b: { K: true, Q: true } };
   render();
   log('Nouvelle partie');
@@ -287,14 +386,13 @@ function isCheckmate(color) {
     for (let c = 0; c < 8; c++) {
       const piece = state.board[r][c];
       if (piece && piece.color === color) {
-        if (validMoves(r, c).length > 0) return false;
+        if (legalMoves(r, c).length > 0) return false;
       }
     }
   }
   return isKingInCheck(color);
 }
-state.whiteTurn = true;
+
 state.board = initBoard();
 render();
 log('Jeu initialisé');
-
