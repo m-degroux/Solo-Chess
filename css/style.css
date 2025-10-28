@@ -18,6 +18,19 @@
 .square.white { background-color: #d7c183; }
 .square.black { background-color: #a56e10; color: white; }
 .square.selected { border: 3px solid rgb(208, 100, 241); }
-.square.highlight { background-color: rgba(0, 255, 0, 0.4); }
 
+.square.highlight {
+  position: relative;
+}
 
+.square.highlight::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40%;
+  height: 40%;
+  background-color: rgb(71, 194, 0);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
