@@ -1,26 +1,24 @@
-.board {
-  display: grid;
-  grid-template-columns: repeat(8, 60px);
-  grid-template-rows: repeat(8, 60px);
-}
-.square {
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 38px;
-}
-
 #log { height: 350px; overflow-y: auto; }
 
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 70px);
+  grid-template-rows: repeat(8, 70px);
+}
 
-.square.white { background-color: #d7c183; }
-.square.black { background-color: #a56e10; color: white; }
-.square.selected { border: 3px solid rgb(208, 100, 241); }
-
-.square.highlight {
+.square {
   position: relative;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.square.light { background-color: #f0d9b5; }
+.square.dark { background-color: #b58863; }
+.square.selected {
+  border: 3px solid rgb(208, 100, 241);
 }
 
 .square.highlight::after {
@@ -28,9 +26,17 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 40%;
-  height: 40%;
-  background-color: rgb(71, 194, 0);
+  width: 35%;
+  height: 35%;
+  background-color: rgba(0, 255, 0, 0.5);
   border-radius: 50%;
   transform: translate(-50%, -50%);
+  pointer-events: none;
 }
+
+.piece {
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+}
+
