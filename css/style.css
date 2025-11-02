@@ -18,7 +18,8 @@
 .square.light { background-color: #f0d9b5; }
 .square.dark { background-color: #b58863; }
 .square.selected {
-  border: 3px solid rgb(208, 100, 241);
+  
+  : 3px solid rgb(208, 100, 241);
 }
 
 .square.highlight::after {

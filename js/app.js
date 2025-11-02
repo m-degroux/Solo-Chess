@@ -5,6 +5,7 @@ const state = {
   flipped: false,
   aiEnabled: false,
   aiDepth: 2,
+  aiPlaysWhite: false,
   enPassant: null,
   moved: {},
   history: [],
@@ -13,10 +14,18 @@ const state = {
 
 let boardEl, turnLabel;
 
-function log(msg) {
-  const el = document.getElementById("log");
-  el.innerHTML += msg + "<br>";
-  el.scrollTop = el.scrollHeight;
+function logMove(start, end, playerColor) {
+  const pieceAscii = playerColor === "white" ? "♙" : "♟︎";
+  const logText = `${pieceAscii}  ${start} → ${end}`;
+
+  console.log(logText);
+
+  const logDiv = document.getElementById("log");
+  if (logDiv) {
+    const entry = document.createElement("div");
+    entry.textContent = logText;
+    logDiv.appendChild(entry);
+  }
 }
 
 function cloneBoard(board) {
@@ -27,7 +36,7 @@ function inBounds(r, c) {
   return r >= 0 && r < 8 && c >= 0 && c < 8;
 }
 
-// Initialisation
+// Initailisation
 function initBoard() {
   const setup = [
     ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -50,9 +59,10 @@ function initBoard() {
   state.moved = {};
   state.history = [];
   state.moveCount = 0;
+  const logDiv = document.getElementById("log");
+  if (logDiv) logDiv.innerHTML = "";
 
   render();
-  log("Nouvelle partie !");
 }
 
 // Rendu du plateau
@@ -119,7 +129,7 @@ function onSquareClick(r, c) {
       movePiece(state.selected, choice);
       state.selected = null;
       render();
-      setTimeout(maybePlayAI, 50);
+      setTimeout(maybePlayai, 50);
       return;
     }
 
@@ -250,54 +260,81 @@ function movePiece(from, to) {
   const piece = state.board[from.r][from.c];
   if (!piece) return;
 
-  // Pion
+  const startSq = toSquare(from.r, from.c);
+  const endSq = toSquare(to.r, to.c);
+  const playerColor = piece.color === "w" ? "white" : "black";
+
+  let moveText = "";
+
+  // Capture
+  const captured = state.board[to.r][to.c];
+  if (captured) {
+    moveText = `${piece.type}x${endSq}`;
+  }
+
+  // En Passant
   if (piece.type === "P" && to.enPassant) {
     const capturedRow = from.r;
     const capturedCol = to.c;
-    const captured = state.board[capturedRow][capturedCol];
-    if (captured && captured.type === "P" && captured.color !== piece.color) {
+    const epPawn = state.board[capturedRow][capturedCol];
+
+    if (epPawn && epPawn.type === "P" && epPawn.color !== piece.color) {
       state.board[capturedRow][capturedCol] = null;
-      log(`Capture en passant supprimée : ${captured.color} Pion en ${capturedRow},${capturedCol}`);
+      moveText = `Pxe.p ${endSq}`;
     } else {
       return;
     }
   }
 
-  // Roque 
+  // Roque
+
   if (piece.type === "K" && Math.abs(to.c - from.c) === 2) {
-    if (to.c > from.c) {
-      const rook = state.board[from.r][7];
-      state.board[from.r][5] = rook;
-      state.board[from.r][7] = null;
-      log(`Petit roque du roi ${piece.color}`);
-    } else {
-      const rook = state.board[from.r][0];
-      state.board[from.r][3] = rook;
-      state.board[from.r][0] = null;
-      log(`Grand roque du roi ${piece.color}`);
-    }
+    moveText = (to.c > from.c) ? "O-O" : "O-O-O";
+  }
+  if (!moveText) {
+    moveText = `${piece.type}${endSq}`;
   }
 
-  // Déplacement principal
   state.board[to.r][to.c] = piece;
   state.board[from.r][from.c] = null;
 
-  // Promotion automatique
+  // Promotion
   if (piece.type === "P" && (to.r === 0 || to.r === 7)) {
     piece.type = "Q";
-    log(`Promotion automatique en Q en ${to.r},${to.c}`);
+    moveText += "=Q";
   }
 
   state.enPassant = null;
-
   if (piece.type === "P" && Math.abs(to.r - from.r) === 2) {
-    state.enPassant = { r: (from.r + to.r) / 2, c: from.c, pawnColor: piece.color };
+    state.enPassant = { r: (from.r + to.r) / 2, c: from.c };
   }
 
   const movedKey = piece.color + piece.type + from.r + from.c;
   state.moved[movedKey] = true;
 
+  logMove(startSq, endSq, playerColor);
+
+  state.history.push(moveText);
+  state.moveCount++;
+
+  // Changer le joueur
   state.whiteTurn = !state.whiteTurn;
+
+  const side = state.whiteTurn ? "w" : "b";
+
+  if (isCheckmate(side)) {
+    logMove("FIN", "Mat", playerColor);
+    return;
+  }
+
+  if (isStalemate(side)) {
+    logMove("FIN", "Pat", playerColor);
+    return;
+  }
+}
+
+function toSquare(r, c) {
+  return "abcdefgh"[c] + (8 - r);
 }
 
 function wouldCauseCheck(r1, c1, r2, c2, board = state.board) {
@@ -349,6 +386,20 @@ function isCheckmate(color) {
   return true;
 }
 
+function isStalemate(color) {
+  if (isKingInCheck(color)) return false;
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (state.board[r][c]?.color === color) {
+        if (legalMoves(r, c).length > 0)
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   boardEl = document.getElementById("board");
   turnLabel = document.getElementById("turnLabel");
@@ -359,16 +410,32 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("flipBtn").onclick = () => {
     state.flipped = !state.flipped;
+    if (state.aiEnabled) {
+      state.aiPlaysWhite = !state.aiPlaysWhite;
+    }
     render();
+    if (state.aiEnabled) {
+      const aiColor = state.aiPlaysWhite ? "w" : "b";
+      if ((aiColor === "w" && state.whiteTurn) ||
+        (aiColor === "b" && !state.whiteTurn)) {
+        setTimeout(maybePlayai, 80);
+      }
+    }
   };
+  document.getElementById("depthSelect").addEventListener("change", e => {
+    state.aiDepth = parseInt(e.target.value);
+    log("IA : profondeur = " + state.aiDepth);
+  });
 
-  const controls = document.querySelector(".controls");
-  const aiBtn = document.createElement("button");
-  aiBtn.className = "btn btn-sm btn-outline-primary";
-  aiBtn.textContent = "Activer IA";
+  const aiBtn = document.getElementById("aiBtn");
   aiBtn.onclick = () => {
     state.aiEnabled = !state.aiEnabled;
     aiBtn.textContent = state.aiEnabled ? "Désactiver IA" : "Activer IA";
+
+    const aiColor = state.aiPlaysWhite ? "w" : "b";
+    if ((aiColor === "w" && state.whiteTurn) ||
+      (aiColor === "b" && !state.whiteTurn)) {
+      setTimeout(maybePlayai, 80);
+    }
   };
-  controls.appendChild(aiBtn);
 });
