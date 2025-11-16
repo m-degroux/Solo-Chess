@@ -231,16 +231,24 @@ function legalMoves(r, c, board = state.board) {
 
     const keyK = p.color + "K" + r + c;
 
-    if (!state.moved[keyK]) {
-      // Roque roi
+    if (!state.moved[keyK] && !isKingInCheck(p.color)) {
+      // Petit roque
       const rookKR = p.color + "R" + r + 7;
-      if (!state.moved[rookKR] && !board[r][c + 1] && !board[r][c + 2])
-        moves.push({ r, c: c + 2, castle: "king" });
+      if (!state.moved[rookKR]
+          && !board[r][c+1] && !board[r][c+2]
+          && isPathSafeForCastling(board, r, c, c+2, p.color)) {
 
-      // Roque dame
+        moves.push({ r, c: c+2, castle: "king" });
+      }
+
+      // Grand roque
       const rookQR = p.color + "R" + r + 0;
-      if (!state.moved[rookQR] && !board[r][c - 1] && !board[r][c - 2] && !board[r][c - 3])
-        moves.push({ r, c: c - 2, castle: "queen" });
+      if (!state.moved[rookQR]
+          && !board[r][c-1] && !board[r][c-2] && !board[r][c-3]
+          && isPathSafeForCastling(board, r, c, c-2, p.color)) {
+
+        moves.push({ r, c: c-2, castle: "queen" });
+      }
     }
   }
   // EN PASSANT
@@ -287,12 +295,19 @@ function movePiece(from, to) {
   }
 
   // Roque
-
   if (piece.type === "K" && Math.abs(to.c - from.c) === 2) {
+    if (to.c > from.c) {
+      // Petit roque
+      const rook = state.board[from.r][7];
+      state.board[from.r][5] = rook;
+      state.board[from.r][7] = null;
+    } else {
+      // Grand roque
+      const rook = state.board[from.r][0];
+      state.board[from.r][3] = rook;
+      state.board[from.r][0] = null;
+    }
     moveText = (to.c > from.c) ? "O-O" : "O-O-O";
-  }
-  if (!moveText) {
-    moveText = `${piece.type}${endSq}`;
   }
 
   state.board[to.r][to.c] = piece;
@@ -396,6 +411,17 @@ function isStalemate(color) {
           return false;
       }
     }
+  }
+  return true;
+}
+
+function isPathSafeForCastling(board, r, c1, c2, color) {
+  const enemy = color === "w" ? "b" : "w";
+  const minC = Math.min(c1, c2);
+  const maxC = Math.max(c1, c2);
+
+  for (let c = minC; c <= maxC; c++) {
+    if (isSquareAttacked(board, r, c, enemy)) return false;
   }
   return true;
 }
